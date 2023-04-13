@@ -6,7 +6,7 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server:server, path: '/streaming' });
 const { socket, setSocket } = require('./bitstamp_socket');
-const { connectToRedis } = require('./redisdb');
+const { redisClient, connectToRedis } = require('./redisdb');
 
 const { ipLimiter, userIdLimiter } = require('./middleware');
 
@@ -25,7 +25,9 @@ app.get('/data', (req, res) => {
     return response.json();
   })
   .then((json) => {
-    res.send(json);
+    res.send({
+      result: json,
+    });
   })
   .catch(err => {
     res.status(500);
@@ -36,7 +38,7 @@ app.get('/data', (req, res) => {
  * Receive subscription/unsubscription message from the client
  * and send live ticker data back
  * 
- * Client message form example:
+ * Client message example:
  * 
  * {
  *  "event": subscribe,
@@ -53,7 +55,7 @@ wss.on('connection', async (ws) => {
   // Send subscription requests to Bitstamp Websocket API
   ws.on('message', (msg) => {
     const msgList = processUserMsg(msg);
-
+    
     msgList.forEach(msg => {
       socket.send(JSON.stringify(msg));
     });
@@ -67,16 +69,22 @@ function processUserMsg(msg) {
   const currencyPairs = msg.currency_pairs;
   const msgList = [];
 
-  for (let i = 0; i < currencyPairs.length; i++) {
-    const channelName = 'live_trades_' + currencyPairs[i];
+  currencyPairs.forEach(currencyPair => {
+    const channelName = 'live_trades_' + currencyPair;
     const subscribeMsg = {
       event: "bts:" + subscribeEvent,
       data: {
         "channel": channelName,
       }
     }
+    
+    if (subscribeEvent === 'unsubscribe') {
+      redisClient.sRem('currency_pairs', currencyPair);
+      console.log(`${currencyPair} unsubscribed`);
+    }
+
     msgList.push(subscribeMsg);
-  }
+  })
 
   return msgList;
 }
