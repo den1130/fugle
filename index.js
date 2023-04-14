@@ -35,7 +35,7 @@ app.get('/data', (req, res) => {
 });
 
 /*
- * Receive subscription/unsubscription message from the client
+ * Receive subscribe/unsubscribe message from the client
  * and send live ticker data back
  * 
  * Client message example:

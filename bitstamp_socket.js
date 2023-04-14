@@ -2,10 +2,11 @@ const { redisClient } = require('./redisdb');
 const { WebSocket } = require('ws');
 
 const socket = new WebSocket('wss://ws.bitstamp.net');
-const theInterval = 1 * 60 * 1000;   // Send OHLC data per minutes
+const theInterval = 1 * 60 * 1000;   // Send OHLC data every minute
 const noOhlcMsg = 'no transactions in the past minute';
 let ohlcSetDone = false;
 
+// Receive the messages from Bitstamp API, save to redis database and send streaming data
 async function setSocket(ws) {
   socket.on('message', async (evt) => {
     const msg = JSON.parse(evt);
